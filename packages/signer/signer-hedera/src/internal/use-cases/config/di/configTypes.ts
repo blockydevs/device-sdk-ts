@@ -1,3 +1,3 @@
 export const configTypes = {
-  GetAppConfigUseCase: Symbol.for("GetAppConfigUseCase"),
+  GetAppConfigurationUseCase: Symbol.for("GetAppConfigurationUseCase"),
 } as const;

@@ -11,7 +11,7 @@ import {
 import { CommandErrorHelper } from "@ledgerhq/signer-utils";
 import { Maybe } from "purify-ts";
 
-import { type AppConfig } from "@api/model/AppConfig";
+import { type AppConfiguration } from "@api/model/AppConfiguration";
 import {
   HEDERA_APP_ERRORS,
   HederaAppCommandErrorFactory,
@@ -19,7 +19,7 @@ import {
 } from "@internal/app-binder/command/utils/hederaApplicationErrors";
 import { CLA, INS, P2_UNUSED } from "@internal/app-binder/constants";
 
-export type GetAppConfigCommandResponse = AppConfig;
+export type GetAppConfigurationCommandResponse = AppConfiguration;
 
 const P1_UNUSED = 0x00;
 
@@ -30,13 +30,13 @@ const P1_UNUSED = 0x00;
  * is reserved for future use by the app, is always zero, and is therefore
  * skipped.
  */
-export class GetAppConfigCommand
-  implements Command<GetAppConfigCommandResponse, void, HederaErrorCodes>
+export class GetAppConfigurationCommand
+  implements Command<GetAppConfigurationCommandResponse, void, HederaErrorCodes>
 {
-  readonly name = "GetAppConfig";
+  readonly name = "GetAppConfiguration";
 
   private readonly errorHelper = new CommandErrorHelper<
-    GetAppConfigCommandResponse,
+    GetAppConfigurationCommandResponse,
     HederaErrorCodes
   >(HEDERA_APP_ERRORS, HederaAppCommandErrorFactory);
 
@@ -51,7 +51,7 @@ export class GetAppConfigCommand
 
   parseResponse(
     apduResponse: ApduResponse,
-  ): CommandResult<GetAppConfigCommandResponse, HederaErrorCodes> {
+  ): CommandResult<GetAppConfigurationCommandResponse, HederaErrorCodes> {
     return Maybe.fromNullable(
       this.errorHelper.getError(apduResponse),
     ).orDefaultLazy(() => {

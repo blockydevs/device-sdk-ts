@@ -8,7 +8,7 @@ import { from } from "rxjs";
 import { vi } from "vitest";
 
 import { GetAddressCommand } from "@internal/app-binder/command/GetAddressCommand";
-import { GetAppConfigCommand } from "@internal/app-binder/command/GetAppConfigCommand";
+import { GetAppConfigurationCommand } from "@internal/app-binder/command/GetAppConfigurationCommand";
 import { SignTransactionCommand } from "@internal/app-binder/command/SignTransactionCommand";
 import { APP_NAME } from "@internal/app-binder/constants";
 import { DefaultSignerHedera } from "@internal/DefaultSignerHedera";
@@ -30,12 +30,12 @@ describe("DefaultSignerHedera", () => {
     };
   };
 
-  it("getAppConfig should send the app config command and open the app", () => {
+  it("getAppConfiguration should send the app config command and open the app", () => {
     // ARRANGE
     const { executeDeviceAction, expectedResult, signer } = setup();
 
     // ACT
-    const result = signer.getAppConfig();
+    const result = signer.getAppConfiguration();
 
     // ASSERT
     expect(result).toBe(expectedResult);
@@ -45,7 +45,7 @@ describe("DefaultSignerHedera", () => {
         sessionId,
         deviceAction: new SendCommandInAppDeviceAction({
           input: {
-            command: new GetAppConfigCommand(),
+            command: new GetAppConfigurationCommand(),
             appName: APP_NAME,
             requiredUserInteraction: UserInteractionRequired.None,
             skipOpenApp: false,

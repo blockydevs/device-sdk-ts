@@ -1,12 +1,14 @@
 import { type GetAddressDAReturnType } from "@api/app-binder/GetAddressDeviceActionTypes";
-import { type GetAppConfigDAReturnType } from "@api/app-binder/GetAppConfigDeviceActionTypes";
+import { type GetAppConfigurationDAReturnType } from "@api/app-binder/GetAppConfigurationDeviceActionTypes";
 import { type SignTransactionDAReturnType } from "@api/app-binder/SignTransactionDeviceActionTypes";
 import { type AddressOptions } from "@api/model/AddressOptions";
-import { type AppConfigOptions } from "@api/model/AppConfigOptions";
+import { type AppConfigurationOptions } from "@api/model/AppConfigurationOptions";
 import { type TransactionOptions } from "@api/model/TransactionOptions";
 
 export interface SignerHedera {
-  getAppConfig: (options?: AppConfigOptions) => GetAppConfigDAReturnType;
+  getAppConfiguration: (
+    options?: AppConfigurationOptions,
+  ) => GetAppConfigurationDAReturnType;
 
   getAddress: (
     derivationPath: string,

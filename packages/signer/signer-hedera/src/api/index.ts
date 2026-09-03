@@ -5,11 +5,11 @@ export {
   type GetAddressDAReturnType,
 } from "@api/app-binder/GetAddressDeviceActionTypes";
 export {
-  type GetAppConfigDAError,
-  type GetAppConfigDAIntermediateValue,
-  type GetAppConfigDAOutput,
-  type GetAppConfigDAReturnType,
-} from "@api/app-binder/GetAppConfigDeviceActionTypes";
+  type GetAppConfigurationDAError,
+  type GetAppConfigurationDAIntermediateValue,
+  type GetAppConfigurationDAOutput,
+  type GetAppConfigurationDAReturnType,
+} from "@api/app-binder/GetAppConfigurationDeviceActionTypes";
 export {
   type SignTransactionDAError,
   type SignTransactionDAIntermediateValue,
@@ -18,8 +18,8 @@ export {
 } from "@api/app-binder/SignTransactionDeviceActionTypes";
 export { type Address } from "@api/model/Address";
 export { type AddressOptions } from "@api/model/AddressOptions";
-export { type AppConfig } from "@api/model/AppConfig";
-export { type AppConfigOptions } from "@api/model/AppConfigOptions";
+export { type AppConfiguration } from "@api/model/AppConfiguration";
+export { type AppConfigurationOptions } from "@api/model/AppConfigurationOptions";
 export { type Signature } from "@api/model/Signature";
 export { type TransactionOptions } from "@api/model/TransactionOptions";
 export { type SignerHedera } from "@api/SignerHedera";

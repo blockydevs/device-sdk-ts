@@ -6,7 +6,7 @@ import {
 import { vi } from "vitest";
 
 import { GetAddressCommand } from "@internal/app-binder/command/GetAddressCommand";
-import { GetAppConfigCommand } from "@internal/app-binder/command/GetAppConfigCommand";
+import { GetAppConfigurationCommand } from "@internal/app-binder/command/GetAppConfigurationCommand";
 import { SignTransactionCommand } from "@internal/app-binder/command/SignTransactionCommand";
 import { APP_NAME } from "@internal/app-binder/constants";
 import { HederaAppBinder } from "@internal/app-binder/HederaAppBinder";
@@ -37,20 +37,22 @@ describe("HederaAppBinder", () => {
     executeDeviceAction: ReturnType<typeof vi.fn>,
   ): ExecutedAction => executeDeviceAction.mock.calls[0]![0] as ExecutedAction;
 
-  it("getAppConfig should send GetAppConfigCommand without user interaction", () => {
+  it("getAppConfiguration should send GetAppConfigurationCommand without user interaction", () => {
     // ARRANGE
     const expectedResult = { observable: {}, cancel: vi.fn() };
     const executeDeviceAction = vi.fn().mockReturnValue(expectedResult);
     const binder = makeBinder(executeDeviceAction);
 
     // ACT
-    const result = binder.getAppConfig({ skipOpenApp: false });
+    const result = binder.getAppConfiguration({ skipOpenApp: false });
 
     // ASSERT
     const args = executedAction(executeDeviceAction);
     expect(args.sessionId).toBe(sessionId);
     expect(args.deviceAction).toBeInstanceOf(SendCommandInAppDeviceAction);
-    expect(args.deviceAction.input.command).toBeInstanceOf(GetAppConfigCommand);
+    expect(args.deviceAction.input.command).toBeInstanceOf(
+      GetAppConfigurationCommand,
+    );
     expect(args.deviceAction.input.appName).toBe(APP_NAME);
     expect(args.deviceAction.input.requiredUserInteraction).toBe(
       UserInteractionRequired.None,

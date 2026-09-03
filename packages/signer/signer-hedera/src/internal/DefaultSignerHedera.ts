@@ -5,17 +5,17 @@ import {
 import { type Container } from "inversify";
 
 import { type GetAddressDAReturnType } from "@api/app-binder/GetAddressDeviceActionTypes";
-import { type GetAppConfigDAReturnType } from "@api/app-binder/GetAppConfigDeviceActionTypes";
+import { type GetAppConfigurationDAReturnType } from "@api/app-binder/GetAppConfigurationDeviceActionTypes";
 import { type SignTransactionDAReturnType } from "@api/app-binder/SignTransactionDeviceActionTypes";
 import { type AddressOptions } from "@api/model/AddressOptions";
-import { type AppConfigOptions } from "@api/model/AppConfigOptions";
+import { type AppConfigurationOptions } from "@api/model/AppConfigurationOptions";
 import { type TransactionOptions } from "@api/model/TransactionOptions";
 import { type SignerHedera } from "@api/SignerHedera";
 import { makeContainer } from "@internal/di";
 import { addressTypes } from "@internal/use-cases/address/di/addressTypes";
 import { type GetAddressUseCase } from "@internal/use-cases/address/GetAddressUseCase";
 import { configTypes } from "@internal/use-cases/config/di/configTypes";
-import { type GetAppConfigUseCase } from "@internal/use-cases/config/GetAppConfigUseCase";
+import { type GetAppConfigurationUseCase } from "@internal/use-cases/config/GetAppConfigurationUseCase";
 import { transactionTypes } from "@internal/use-cases/transaction/di/transactionTypes";
 import { type SignTransactionUseCase } from "@internal/use-cases/transaction/SignTransactionUseCase";
 
@@ -31,9 +31,11 @@ export class DefaultSignerHedera implements SignerHedera {
     this._container = makeContainer({ dmk, sessionId });
   }
 
-  getAppConfig(options?: AppConfigOptions): GetAppConfigDAReturnType {
+  getAppConfiguration(
+    options?: AppConfigurationOptions,
+  ): GetAppConfigurationDAReturnType {
     return this._container
-      .get<GetAppConfigUseCase>(configTypes.GetAppConfigUseCase)
+      .get<GetAppConfigurationUseCase>(configTypes.GetAppConfigurationUseCase)
       .execute(options);
   }
 

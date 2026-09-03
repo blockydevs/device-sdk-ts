@@ -5,13 +5,13 @@ import {
   isSuccessCommandResult,
 } from "@ledgerhq/device-management-kit";
 
-import { GetAppConfigCommand } from "@internal/app-binder/command/GetAppConfigCommand";
+import { GetAppConfigurationCommand } from "@internal/app-binder/command/GetAppConfigurationCommand";
 
-describe("GetAppConfigCommand", () => {
-  let command: GetAppConfigCommand;
+describe("GetAppConfigurationCommand", () => {
+  let command: GetAppConfigurationCommand;
 
   beforeEach(() => {
-    command = new GetAppConfigCommand();
+    command = new GetAppConfigurationCommand();
   });
 
   describe("getApdu", () => {
