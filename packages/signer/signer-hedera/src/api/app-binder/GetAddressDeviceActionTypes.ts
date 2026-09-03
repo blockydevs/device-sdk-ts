@@ -1,0 +1,35 @@
+import {
+  type CommandErrorResult,
+  type ExecuteDeviceActionReturnType,
+  type OpenAppDAError,
+  type SendCommandInAppDAIntermediateValue,
+  type SendCommandInAppDAOutput,
+  type UserInteractionRequired,
+} from "@ledgerhq/device-management-kit";
+
+import { type GetAddressCommandResponse } from "@internal/app-binder/command/GetAddressCommand";
+import {
+  type HederaErrorCodes,
+  type HederaInvalidInputError,
+} from "@internal/app-binder/command/utils/hederaApplicationErrors";
+
+type GetAddressDAUserInteractionRequired =
+  | UserInteractionRequired.None
+  | UserInteractionRequired.VerifyAddress;
+
+export type GetAddressDAOutput =
+  SendCommandInAppDAOutput<GetAddressCommandResponse>;
+
+export type GetAddressDAError =
+  | OpenAppDAError
+  | HederaInvalidInputError
+  | CommandErrorResult<HederaErrorCodes>["error"];
+
+export type GetAddressDAIntermediateValue =
+  SendCommandInAppDAIntermediateValue<GetAddressDAUserInteractionRequired>;
+
+export type GetAddressDAReturnType = ExecuteDeviceActionReturnType<
+  GetAddressDAOutput,
+  GetAddressDAError,
+  GetAddressDAIntermediateValue
+>;

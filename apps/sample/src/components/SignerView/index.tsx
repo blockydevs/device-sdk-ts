@@ -61,6 +61,11 @@ const SUPPORTED_SIGNERS = [
     description: "Access Xrp signer functionality",
     icon: <CryptoIcon ledgerId="ripple" ticker="XRP" size={size} />,
   },
+  {
+    title: "Hedera",
+    description: "Access Hedera signer functionality",
+    icon: <CryptoIcon ledgerId="hedera" ticker="HEDERA" size={size} />,
+  },
 ];
 
 export const SignerView = () => {
