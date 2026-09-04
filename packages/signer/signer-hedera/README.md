@@ -16,7 +16,7 @@ import { SignerHederaBuilder } from "@ledgerhq/device-signer-kit-hedera";
 const signer = new SignerHederaBuilder({ dmk, sessionId }).build();
 
 // Read the app version, optionally skipping the automatic app opening
-const { observable } = signer.getAppConfig({ skipOpenApp: false });
+const { observable } = signer.getAppConfiguration({ skipOpenApp: false });
 
 // Get the public key at m/44'/3030'/0'/0'/0'
 signer.getAddress("44'/3030'/0'/0'/0'", { checkOnDevice: true });
@@ -27,16 +27,16 @@ signer.signTransaction("44'/3030'/0'/0'/0'", transactionBody);
 
 ## App configuration
 
-`getAppConfig` takes optional `AppConfigOptions` and returns the app version.
+`getAppConfiguration` takes optional `AppConfigurationOptions` and returns the app version.
 The first response byte from the device is reserved for future use and is not
 surfaced.
 
 ```typescript
-type AppConfigOptions = {
+type AppConfigurationOptions = {
   skipOpenApp?: boolean;
 };
 
-type AppConfig = {
+type AppConfiguration = {
   version: string;
 };
 ```

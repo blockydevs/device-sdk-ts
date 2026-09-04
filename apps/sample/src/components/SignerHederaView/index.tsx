@@ -3,9 +3,9 @@ import {
   type GetAddressDAError,
   type GetAddressDAIntermediateValue,
   type GetAddressDAOutput,
-  type GetAppConfigDAError,
-  type GetAppConfigDAIntermediateValue,
-  type GetAppConfigDAOutput,
+  type GetAppConfigurationDAError,
+  type GetAppConfigurationDAIntermediateValue,
+  type GetAppConfigurationDAOutput,
   type SignTransactionDAError,
   type SignTransactionDAIntermediateValue,
   type SignTransactionDAOutput,
@@ -36,19 +36,19 @@ export const SignerHederaView: React.FC<{ sessionId: string }> = ({
           if (!signer) {
             throw new Error("Signer not initialized");
           }
-          return signer.getAppConfig({ skipOpenApp });
+          return signer.getAppConfiguration({ skipOpenApp });
         },
         initialValues: {
           skipOpenApp: false,
         },
         deviceModelId,
       } satisfies DeviceActionProps<
-        GetAppConfigDAOutput,
+        GetAppConfigurationDAOutput,
         {
           skipOpenApp?: boolean;
         },
-        GetAppConfigDAError,
-        GetAppConfigDAIntermediateValue
+        GetAppConfigurationDAError,
+        GetAppConfigurationDAIntermediateValue
       >,
       {
         title: "Get Address",

@@ -63,7 +63,7 @@ The `SignerHederaBuilder.build()` method will return a `SignerHedera` instance t
 This method allows users to retrieve the app configuration from the Ledger device.
 
 ```typescript
-const { observable, cancel } = signerHedera.getAppConfig(options);
+const { observable, cancel } = signerHedera.getAppConfiguration(options);
 ```
 
 #### **Parameters**
@@ -71,10 +71,10 @@ const { observable, cancel } = signerHedera.getAppConfig(options);
 - `options`
 
   - Optional
-  - Type: `AppConfigOptions`
+  - Type: `AppConfigurationOptions`
 
     ```typescript
-    type AppConfigOptions = {
+    type AppConfigurationOptions = {
       skipOpenApp?: boolean;
     };
     ```
@@ -86,7 +86,7 @@ const { observable, cancel } = signerHedera.getAppConfig(options);
 - `observable` Emits DeviceActionState updates, including the following details:
 
 ```typescript
-type AppConfig = {
+type AppConfiguration = {
   /** Semantic version of the Hedera app running on the device. */
   version: string;
 };
