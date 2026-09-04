@@ -38,6 +38,25 @@ describe("SignTransactionCommand", () => {
       );
     });
 
+    it("should send the app-hardcoded index 0 for the short 44'/3030' path", () => {
+      // ARRANGE
+      const command = new SignTransactionCommand({
+        derivationPath: "44'/3030'",
+        transaction: new Uint8Array([0xaa, 0xbb, 0xcc]),
+      });
+      // ACT
+      const apdu = command.getApdu();
+      // ASSERT
+      expect(apdu.getRawApdu()).toStrictEqual(
+        // prettier-ignore
+        new Uint8Array([
+          0xe0, 0x04, 0x00, 0x00, 0x07,
+          0x00, 0x00, 0x00, 0x00,
+          0xaa, 0xbb, 0xcc,
+        ]),
+      );
+    });
+
     it("should accept a transaction that exactly fills the payload", () => {
       // ARRANGE
       const command = new SignTransactionCommand({

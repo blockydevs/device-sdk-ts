@@ -29,6 +29,20 @@ describe("GetAddressCommand", () => {
       );
     });
 
+    it("should send the app-hardcoded index 0 for the short 44'/3030' path", () => {
+      // ARRANGE
+      const command = new GetAddressCommand({
+        derivationPath: "44'/3030'",
+        checkOnDevice: false,
+      });
+      // ACT
+      const apdu = command.getApdu();
+      // ASSERT
+      expect(apdu.getRawApdu()).toStrictEqual(
+        new Uint8Array([0xe0, 0x02, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00]),
+      );
+    });
+
     it("should use P1=0x00 when the key must be shown on device", () => {
       // ARRANGE
       const command = new GetAddressCommand({
