@@ -32,6 +32,7 @@ Use these short names in the `--packages` flag. The user may use either aliases 
 | `signer-cosmos`         | `@ledgerhq/device-signer-kit-cosmos`                           |
 | `signer-hyperliquid`    | `@ledgerhq/device-signer-kit-hyperliquid`                      |
 | `signer-concordium`     | `@ledgerhq/device-signer-kit-concordium`                       |
+| `signer-hedera`         | `@ledgerhq/device-signer-kit-hedera`                           |
 | `signer-polkadot`       | `@ledgerhq/device-signer-kit-polkadot`                         |
 | `signer-zcash`          | `@ledgerhq/device-signer-kit-zcash`                            |
 | `signer-utils`          | `@ledgerhq/signer-utils`                                       |
