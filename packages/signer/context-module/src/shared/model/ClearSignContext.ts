@@ -1,6 +1,7 @@
 import { type EthereumPayloadOverrides } from "@/modules/ethereum/model/EthereumClearSignContext";
 import { type PkiCertificate } from "@/modules/multichain/pki/model/PkiCertificate";
 import { type SolanaPayloadOverrides } from "@/modules/solana/model/SolanaClearSignContext";
+import { type XrpPayloadOverrides } from "@/modules/xrp/model/XrpClearSignContext";
 
 export enum ClearSignContextType {
   ERROR = "error",
@@ -32,6 +33,7 @@ export enum ClearSignContextType {
   SOLANA_ALT_RESOLUTION = "solanaAltResolution",
   SOLANA_BASIC_FLOW_RULE = "solanaBasicFlowRule",
   TRON_TOKEN = "tronToken",
+  XRP_MPT_TOKEN = "xrpMptToken",
 }
 
 export type ClearSignContextSuccessType = Exclude<
@@ -55,7 +57,8 @@ type ClearSignContextSuccessPayloadsBase = {
 // Chain modules contribute typed-payload overrides. This file is the
 // integration boundary that assembles them into the cross-chain union.
 type ClearSignContextSuccessPayloadOverrides = EthereumPayloadOverrides &
-  SolanaPayloadOverrides;
+  SolanaPayloadOverrides &
+  XrpPayloadOverrides;
 
 type ClearSignContextSuccessPayloads = Omit<
   ClearSignContextSuccessPayloadsBase,
