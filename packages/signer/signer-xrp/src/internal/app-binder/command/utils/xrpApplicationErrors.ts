@@ -31,7 +31,7 @@ export type XrpErrorCodes =
 export const XRP_APP_ERRORS: CommandErrors<XrpErrorCodes> = {
   "6700": { message: "Incorrect length, or transaction too large" },
   "6800": { message: "Parser error" },
-  "6804": { message: "Invalid MPT amount" },
+  "6804": { message: "Parser error: invalid state" },
   "6985": { message: "Condition of use not satisfied (Rejected by user)" },
   "6a80": { message: "Invalid data" },
   "6a81": { message: "Invalid derivation path" },

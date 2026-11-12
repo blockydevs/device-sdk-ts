@@ -23,7 +23,7 @@ import { type SignTransactionUseCase } from "@internal/use-cases/transaction/Sig
 type DefaultSignerXrpConstructorArgs = {
   dmk: DeviceManagementKit;
   sessionId: DeviceSessionId;
-  contextModule?: ContextModule;
+  contextModule: ContextModule;
 };
 
 export class DefaultSignerXrp implements SignerXrp {

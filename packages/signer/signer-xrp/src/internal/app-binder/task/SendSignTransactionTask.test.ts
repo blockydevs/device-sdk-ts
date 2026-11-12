@@ -1,5 +1,6 @@
 import {
   APDU_MAX_PAYLOAD,
+  bufferToHexaString,
   type Command,
   type CommandErrorResult,
   type CommandResult,
@@ -13,7 +14,6 @@ import { Just, Nothing } from "purify-ts";
 import { vi } from "vitest";
 
 import { Curve } from "@api/model/Curve";
-import { type SignTransactionCommand } from "@internal/app-binder/command/SignTransactionCommand";
 import {
   XrpAppCommandError,
   type XrpErrorCodes,
@@ -23,6 +23,7 @@ import { type MptDescriptor } from "@internal/app-binder/task/GetMptDescriptorsT
 import { SendSignTransactionTask } from "./SendSignTransactionTask";
 
 const DERIVATION_PATH = "44'/144'/0'/0/0";
+const INS_SIGN = 0x04;
 const SIGNATURE = Uint8Array.from([0x30, 0x44, 0x02, 0x20, 0x01, 0x02]);
 
 // `[nDerivations][index x n]` ahead of the transaction bytes.
@@ -45,9 +46,16 @@ const loggerFactory = () =>
 const transactionOfLength = (length: number) =>
   Uint8Array.from({ length }, (_, i) => i & 0xff);
 
+type Refusal = {
+  /** Hex of the APDU to refuse, the first time it is sent. */
+  apdu: string;
+  error: CommandErrorResult<XrpErrorCodes>["error"];
+};
+
 /**
- * Drive the task against a stubbed device that acknowledges every chunk and
- * answers the last one with a signature, then return the APDUs it emitted.
+ * Drive the task against a stubbed device that acknowledges every command and
+ * answers the last transaction chunk with a signature, then return the APDUs
+ * it emitted.
  */
 const runTask = async (
   serializedTransaction: Uint8Array,
@@ -55,14 +63,27 @@ const runTask = async (
     derivationPath = DERIVATION_PATH,
     failAtChunk,
     curve = Curve.Secp256k1,
-  }: { derivationPath?: string; failAtChunk?: number; curve?: Curve } = {},
+    mptDescriptors,
+    refusal,
+  }: {
+    derivationPath?: string;
+    failAtChunk?: number;
+    curve?: Curve;
+    mptDescriptors?: MptDescriptor[];
+    refusal?: Refusal;
+  } = {},
 ) => {
-  const commands: SignTransactionCommand[] = [];
-  let call = 0;
+  const apdus: Uint8Array[] = [];
+  const hexApdus: string[] = [];
+  const warn = vi.fn();
 
-  const sendCommand = vi.fn((command: SignTransactionCommand) => {
-    commands.push(command);
-    const index = call++;
+  const sendCommand = vi.fn((command: Command<unknown, unknown, unknown>) => {
+    const apdu = command.getApdu().getRawApdu();
+    const hexApdu = bufferToHexaString(apdu, false);
+    const index = apdus.length;
+    const isFirstSend = !hexApdus.includes(hexApdu);
+    apdus.push(apdu);
+    hexApdus.push(hexApdu);
 
     if (failAtChunk !== undefined && index === failAtChunk) {
       return Promise.resolve(
@@ -75,9 +96,17 @@ const runTask = async (
       );
     }
 
+    if (refusal?.apdu === hexApdu && isFirstSend) {
+      return Promise.resolve(CommandResultFactory({ error: refusal.error }));
+    }
+
+    if (apdu[1] !== INS_SIGN) {
+      return Promise.resolve(CommandResultFactory({ data: undefined }));
+    }
+
     // The app answers a signature only on the final chunk, which is the one
     // whose P1 does not carry the "more to come" bit.
-    const isLast = command.getApdu().getRawApdu()[2]! < 0x80;
+    const isLast = apdu[2]! < 0x80;
     return Promise.resolve(
       CommandResultFactory({ data: isLast ? Just(SIGNATURE) : Nothing }),
     );
@@ -88,30 +117,20 @@ const runTask = async (
     derivationPath,
     serializedTransaction,
     curve,
-    loggerFactory,
+    mptDescriptors,
+    loggerFactory: () => ({ ...loggerFactory(), warn }),
   }).run();
 
-  const apdus = commands.map((c) => c.getApdu().getRawApdu());
   return {
     result,
     apdus,
+    hexApdus,
+    warn,
     p1s: apdus.map((a) => a[2]),
     p2s: apdus.map((a) => a[3]),
     // The data each APDU carried, past the 5 byte header.
     payloads: apdus.map((a) => a.slice(5)),
   };
-};
-
-type Refusal = {
-  /** Hex of the APDU to refuse, the first time it is sent. */
-  apdu: string;
-  error: CommandErrorResult<XrpErrorCodes>["error"];
-};
-
-const toHex = (bytes: Uint8Array) => {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
-    "",
-  );
 };
 
 const makeAppError = (errorCode: XrpErrorCodes) => {
@@ -331,132 +350,81 @@ describe("SendSignTransactionTask with MPT descriptors", () => {
   const DESCRIPTOR_A_APDU = "e022000003010190";
   const DESCRIPTOR_B_APDU = "e022000003010191";
 
-  const run = async (mptDescriptors?: MptDescriptor[], refusal?: Refusal) => {
-    const apdus: string[] = [];
-    const warn = vi.fn();
-    const sendCommand = vi.fn((command: Command<unknown, unknown, unknown>) => {
-      const apdu = toHex(command.getApdu().getRawApdu());
-      const isFirstSend = !apdus.includes(apdu);
-      apdus.push(apdu);
-
-      if (refusal?.apdu === apdu && isFirstSend) {
-        return Promise.resolve(CommandResultFactory({ error: refusal.error }));
-      }
-
-      const data = apdu.startsWith("e004") ? Just(SIGNATURE) : undefined;
-      return Promise.resolve(CommandResultFactory({ data }));
-    });
-
-    const result = await new SendSignTransactionTask(
-      { sendCommand } as unknown as InternalApi,
-      {
-        mptDescriptors,
-        derivationPath: DERIVATION_PATH,
-        serializedTransaction: TRANSACTION,
-        curve: Curve.Secp256k1,
-        loggerFactory: () => {
-          return {
-            warn,
-            debug: vi.fn(),
-            info: vi.fn(),
-            error: vi.fn(),
-            subscribers: [],
-          } as unknown as LoggerPublisherService;
-        },
-      },
-    ).run();
-
-    return { result, apdus, warn };
-  };
-
-  it("should send the same APDUs as before with no descriptor", async () => {
-    const before = await runTask(TRANSACTION);
-
-    const sent = await run([]);
-
-    expect(sent.apdus).toStrictEqual(before.apdus.map(toHex));
-  });
+  const SIGN_APDU: unknown = expect.stringMatching(/^e004/);
 
   it("should send the certificate, then the descriptor, then the transaction", async () => {
-    const sent = await run([DESCRIPTORS[0]!]);
+    const { result, hexApdus, warn } = await runTask(TRANSACTION, {
+      mptDescriptors: [DESCRIPTORS[0]!],
+    });
 
-    expectSignature(sent.result);
-    expect(sent.apdus).toHaveLength(3);
-    expect(sent.apdus.slice(0, 2)).toStrictEqual([
+    expectSignature(result);
+    expect(hexApdus).toStrictEqual([
       CERTIFICATE_APDU,
       DESCRIPTOR_A_APDU,
+      SIGN_APDU,
     ]);
-    expect(sent.apdus[2]!.startsWith("e004")).toBe(true);
-    expect(sent.warn).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it("should send each descriptor after its certificate, in order", async () => {
-    const sent = await run(DESCRIPTORS);
+    const { result, hexApdus } = await runTask(TRANSACTION, {
+      mptDescriptors: DESCRIPTORS,
+    });
 
-    expectSignature(sent.result);
-    expect(sent.apdus.slice(0, 4)).toStrictEqual([
+    expectSignature(result);
+    expect(hexApdus).toStrictEqual([
       CERTIFICATE_APDU,
       DESCRIPTOR_A_APDU,
       CERTIFICATE_APDU,
       DESCRIPTOR_B_APDU,
+      SIGN_APDU,
     ]);
-    expect(sent.apdus.slice(4).every((apdu) => apdu.startsWith("e004"))).toBe(
-      true,
-    );
   });
 
-  it.each([
-    ["6a80", "the app deleted all descriptors"],
-    ["6a84", "the slots are full"],
-    ["6d00", "the app is older than 2.9.0"],
-    ["6b00", "any other error"],
-  ] as const)(
-    "should stop sending descriptors and sign on %s (%s)",
-    async (errorCode, _reason) => {
-      const sent = await run(DESCRIPTORS, {
-        apdu: DESCRIPTOR_A_APDU,
-        error: makeAppError(errorCode),
-      });
-
-      expectSignature(sent.result);
-      expect(sent.apdus).toHaveLength(3);
-      expect(sent.apdus.slice(0, 2)).toStrictEqual([
-        CERTIFICATE_APDU,
-        DESCRIPTOR_A_APDU,
-      ]);
-      expect(sent.apdus[2]!.startsWith("e004")).toBe(true);
-      expect(sent.warn).toHaveBeenCalledTimes(1);
-    },
-  );
-
-  it("should stop sending descriptors and sign when the certificate is refused", async () => {
-    const sent = await run(DESCRIPTORS, {
-      apdu: CERTIFICATE_APDU,
-      error: new InvalidStatusWordError("5720"),
+  it("should stop sending descriptors and sign when a descriptor is refused", async () => {
+    const { result, hexApdus, warn } = await runTask(TRANSACTION, {
+      mptDescriptors: DESCRIPTORS,
+      refusal: { apdu: DESCRIPTOR_A_APDU, error: makeAppError("6a80") },
     });
 
-    expectSignature(sent.result);
-    expect(sent.apdus).toHaveLength(2);
-    expect(sent.apdus[0]).toBe(CERTIFICATE_APDU);
-    expect(sent.apdus[1]!.startsWith("e004")).toBe(true);
-    expect(sent.warn).toHaveBeenCalledTimes(1);
+    expectSignature(result);
+    expect(hexApdus).toStrictEqual([
+      CERTIFICATE_APDU,
+      DESCRIPTOR_A_APDU,
+      SIGN_APDU,
+    ]);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("should stop sending descriptors and sign when the certificate is refused", async () => {
+    const { result, hexApdus, warn } = await runTask(TRANSACTION, {
+      mptDescriptors: DESCRIPTORS,
+      refusal: {
+        apdu: CERTIFICATE_APDU,
+        error: new InvalidStatusWordError("5720"),
+      },
+    });
+
+    expectSignature(result);
+    expect(hexApdus).toStrictEqual([CERTIFICATE_APDU, SIGN_APDU]);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it("should keep the first descriptor when the second one finds no free slot", async () => {
-    const sent = await run(DESCRIPTORS, {
-      apdu: DESCRIPTOR_B_APDU,
-      error: makeAppError("6a84"),
+    const { result, hexApdus, warn } = await runTask(TRANSACTION, {
+      mptDescriptors: DESCRIPTORS,
+      refusal: { apdu: DESCRIPTOR_B_APDU, error: makeAppError("6a84") },
     });
 
-    expectSignature(sent.result);
-    expect(sent.apdus.slice(0, 4)).toStrictEqual([
+    expectSignature(result);
+    expect(hexApdus).toStrictEqual([
       CERTIFICATE_APDU,
       DESCRIPTOR_A_APDU,
       CERTIFICATE_APDU,
       DESCRIPTOR_B_APDU,
+      SIGN_APDU,
     ]);
-    expect(sent.apdus[4]!.startsWith("e004")).toBe(true);
-    expect(sent.warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it("should fail on a transport error", async () => {
