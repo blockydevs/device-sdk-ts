@@ -1,4 +1,8 @@
-import { type ContextModule } from "@ledgerhq/context-module";
+import {
+  type ContextModule,
+  ContextModuleBuilder,
+  ContextModuleChainID,
+} from "@ledgerhq/context-module";
 import { type DeviceManagementKit } from "@ledgerhq/device-management-kit";
 import { from } from "rxjs";
 
@@ -7,7 +11,7 @@ import { type SignTransactionDeviceAction } from "@internal/app-binder/device-ac
 import { DefaultSignerXrp } from "@internal/DefaultSignerXrp";
 
 const getSignedContextModule = (
-  makeBuilder: (dmk: DeviceManagementKit) => { build: () => DefaultSignerXrp },
+  makeBuilder: (dmk: DeviceManagementKit) => SignerXrpBuilder,
 ) => {
   const executeDeviceAction = vi
     .fn()
@@ -42,11 +46,19 @@ describe("SignerXrpBuilder", () => {
   });
 
   describe("context module", () => {
-    it("should sign with a default context module", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("should sign with a default context module of the XRP chain", () => {
+      const setChain = vi.spyOn(ContextModuleBuilder.prototype, "setChain");
+
       const contextModule = getSignedContextModule(
         (dmk) => new SignerXrpBuilder({ dmk, sessionId: "test-session-id" }),
       );
 
+      expect(setChain).toHaveBeenCalledTimes(1);
+      expect(setChain).toHaveBeenCalledWith(ContextModuleChainID.Xrp);
       expect(contextModule?.getContexts).toBeTypeOf("function");
     });
 
@@ -61,18 +73,6 @@ describe("SignerXrpBuilder", () => {
       });
 
       expect(contextModule).toBe(custom);
-    });
-
-    it("should sign without context module when the signer has none", () => {
-      const contextModule = getSignedContextModule((dmk) => {
-        const signer = new DefaultSignerXrp({
-          dmk,
-          sessionId: "test-session-id",
-        });
-        return { build: () => signer };
-      });
-
-      expect(contextModule).toBeUndefined();
     });
   });
 });

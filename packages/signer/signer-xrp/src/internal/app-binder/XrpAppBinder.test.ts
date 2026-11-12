@@ -1,3 +1,4 @@
+import { type ContextModule } from "@ledgerhq/context-module";
 import {
   CommandResultFactory,
   DeviceActionStatus,
@@ -75,12 +76,15 @@ const loggerFactory = () =>
     subscribers: [],
   }) as unknown as LoggerPublisherService;
 
+const contextModule = { getContexts: vi.fn() } as unknown as ContextModule;
+
 describe("XrpAppBinder", () => {
   it("should be defined", () => {
     const binder = new XrpAppBinder(
       {} as DeviceManagementKit,
       "session-id",
       loggerFactory,
+      contextModule,
     );
 
     expect(binder).toBeDefined();
@@ -105,7 +109,12 @@ describe("XrpAppBinder", () => {
       };
       const executeDeviceAction = vi.fn().mockReturnValue(expectedResult);
       const dmk = { executeDeviceAction } as unknown as DeviceManagementKit;
-      const binder = new XrpAppBinder(dmk, sessionId, loggerFactory);
+      const binder = new XrpAppBinder(
+        dmk,
+        sessionId,
+        loggerFactory,
+        contextModule,
+      );
 
       // WHEN
       const result = binder.getAppConfig({ skipOpenApp: false });
@@ -137,7 +146,12 @@ describe("XrpAppBinder", () => {
         cancel: vi.fn(),
       });
       const dmk = { executeDeviceAction } as unknown as DeviceManagementKit;
-      const binder = new XrpAppBinder(dmk, "test-session-id", loggerFactory);
+      const binder = new XrpAppBinder(
+        dmk,
+        "test-session-id",
+        loggerFactory,
+        contextModule,
+      );
 
       // WHEN
       binder.getAppConfig({ skipOpenApp: true });
@@ -160,7 +174,7 @@ describe("XrpAppBinder", () => {
         executeDeviceAction,
         expectedResult,
         sessionId,
-        binder: new XrpAppBinder(dmk, sessionId, loggerFactory),
+        binder: new XrpAppBinder(dmk, sessionId, loggerFactory, contextModule),
       };
     };
 
@@ -294,7 +308,7 @@ describe("XrpAppBinder", () => {
         executeDeviceAction,
         expectedResult,
         sessionId,
-        binder: new XrpAppBinder(dmk, sessionId, loggerFactory),
+        binder: new XrpAppBinder(dmk, sessionId, loggerFactory, contextModule),
       };
     };
 
@@ -360,6 +374,7 @@ describe("XrpAppBinder", () => {
         { executeDeviceAction } as unknown as DeviceManagementKit,
         "test-session-id",
         taggingFactory,
+        contextModule,
       ).signTransaction({
         derivationPath: DERIVATION_PATH,
         transaction: TRANSACTION,
@@ -387,6 +402,7 @@ describe("XrpAppBinder", () => {
         { executeDeviceAction } as unknown as DeviceManagementKit,
         "test-session-id",
         taggingFactory,
+        contextModule,
       ).signTransaction({
         derivationPath: DERIVATION_PATH,
         transaction: TRANSACTION,

@@ -15,7 +15,7 @@ import { transactionModuleFactory } from "@internal/use-cases/transaction/di/tra
 type MakeContainerProps = {
   dmk: DeviceManagementKit;
   sessionId: DeviceSessionId;
-  contextModule?: ContextModule;
+  contextModule: ContextModule;
 };
 
 export const makeContainer = ({
@@ -25,16 +25,13 @@ export const makeContainer = ({
 }: MakeContainerProps) => {
   const container = new Container();
 
-  if (contextModule) {
-    container
-      .bind<ContextModule>(externalTypes.ContextModule)
-      .toConstantValue(contextModule);
-  }
-
   container.bind<DeviceManagementKit>(externalTypes.Dmk).toConstantValue(dmk);
   container
     .bind<DeviceSessionId>(externalTypes.SessionId)
     .toConstantValue(sessionId);
+  container
+    .bind<ContextModule>(externalTypes.ContextModule)
+    .toConstantValue(contextModule);
 
   container
     .bind<
