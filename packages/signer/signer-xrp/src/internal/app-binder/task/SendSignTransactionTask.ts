@@ -6,18 +6,21 @@ import {
   type InternalApi,
   InvalidArgumentError,
   isSuccessCommandResult,
+  LoadCertificateCommand,
   type LoggerPublisherService,
 } from "@ledgerhq/device-management-kit";
 import { Nothing } from "purify-ts";
 
 import { type Curve } from "@api/model/Curve";
 import { type Signature } from "@api/model/Signature";
+import { ProvideMptDescriptorCommand } from "@internal/app-binder/command/ProvideMptDescriptorCommand";
 import {
   SignTransactionCommand,
   type SignTransactionCommandResponse,
 } from "@internal/app-binder/command/SignTransactionCommand";
 import { validateDerivationPath } from "@internal/app-binder/command/utils/validateDerivationPath";
 import { type XrpErrorCodes } from "@internal/app-binder/command/utils/xrpApplicationErrors";
+import { type MptDescriptor } from "@internal/app-binder/task/GetMptDescriptorsTask";
 
 const PATH_SIZE = 4;
 
@@ -26,6 +29,8 @@ type SendSignTransactionTaskArgs = {
   serializedTransaction: Uint8Array;
   /** Curve to sign with, sent on every chunk. */
   curve: Curve;
+  /** Sent before the transaction, each after its certificate. */
+  mptDescriptors?: MptDescriptor[];
   loggerFactory: (tag: string) => LoggerPublisherService;
 };
 
@@ -33,6 +38,9 @@ type SendSignTransactionTaskArgs = {
  * Drives {@link SignTransactionCommand} over a whole transaction: prepends the
  * encoded derivation path, splits the result into APDU-sized chunks and
  * returns the signature the app answers with on the last one.
+ *
+ * The MPT descriptors go in the same task because the app deletes them when
+ * it gets any other `E0` command before the Sign command.
  */
 export class SendSignTransactionTask {
   private readonly _logger: LoggerPublisherService;
@@ -63,6 +71,8 @@ export class SendSignTransactionTask {
         ),
       });
     }
+
+    await this.provideMptDescriptors(this.args.mptDescriptors);
 
     const chunks = this.getChunks(paths, serializedTransaction);
     this._logger.debug("[run] Sending transaction in chunks", {
@@ -100,6 +110,39 @@ export class SendSignTransactionTask {
         error: new InvalidArgumentError("No signature returned"),
       }),
     );
+  }
+
+  // A refused certificate or descriptor never fails the signature: the app
+  // then signs without the descriptors it does not hold.
+  private async provideMptDescriptors(
+    mptDescriptors: MptDescriptor[] = [],
+  ): Promise<void> {
+    for (const { descriptor, certificate } of mptDescriptors) {
+      const certificateResult = await this.api.sendCommand(
+        new LoadCertificateCommand({
+          keyUsage: certificate.keyUsageNumber,
+          certificate: certificate.payload,
+        }),
+      );
+      if (!isSuccessCommandResult(certificateResult)) {
+        this._logger.warn(
+          "[provideMptDescriptors] Certificate refused, signing without more MPT descriptors",
+          { data: { error: certificateResult.error } },
+        );
+        return;
+      }
+
+      const descriptorResult = await this.api.sendCommand(
+        new ProvideMptDescriptorCommand({ descriptor }),
+      );
+      if (!isSuccessCommandResult(descriptorResult)) {
+        this._logger.warn(
+          "[provideMptDescriptors] MPT descriptor refused, signing without more MPT descriptors",
+          { data: { error: descriptorResult.error } },
+        );
+        return;
+      }
+    }
   }
 
   /**

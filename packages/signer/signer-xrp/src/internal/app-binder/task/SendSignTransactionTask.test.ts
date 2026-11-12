@@ -1,7 +1,11 @@
 import {
   APDU_MAX_PAYLOAD,
+  type Command,
+  type CommandErrorResult,
+  type CommandResult,
   CommandResultFactory,
   type InternalApi,
+  InvalidStatusWordError,
   isSuccessCommandResult,
   type LoggerPublisherService,
 } from "@ledgerhq/device-management-kit";
@@ -10,7 +14,11 @@ import { vi } from "vitest";
 
 import { Curve } from "@api/model/Curve";
 import { type SignTransactionCommand } from "@internal/app-binder/command/SignTransactionCommand";
-import { XrpAppCommandError } from "@internal/app-binder/command/utils/xrpApplicationErrors";
+import {
+  XrpAppCommandError,
+  type XrpErrorCodes,
+} from "@internal/app-binder/command/utils/xrpApplicationErrors";
+import { type MptDescriptor } from "@internal/app-binder/task/GetMptDescriptorsTask";
 
 import { SendSignTransactionTask } from "./SendSignTransactionTask";
 
@@ -92,6 +100,29 @@ const runTask = async (
     // The data each APDU carried, past the 5 byte header.
     payloads: apdus.map((a) => a.slice(5)),
   };
+};
+
+type Refusal = {
+  /** Hex of the APDU to refuse, the first time it is sent. */
+  apdu: string;
+  error: CommandErrorResult<XrpErrorCodes>["error"];
+};
+
+const toHex = (bytes: Uint8Array) => {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
+};
+
+const makeAppError = (errorCode: XrpErrorCodes) => {
+  return new XrpAppCommandError({ errorCode, message: "refused" });
+};
+
+const expectSignature = (result: CommandResult<unknown, unknown>) => {
+  if (!isSuccessCommandResult(result)) {
+    assert.fail("Expected a signature");
+  }
+  expect(result.data).toStrictEqual(SIGNATURE);
 };
 
 describe("SendSignTransactionTask", () => {
@@ -280,5 +311,171 @@ describe("SendSignTransactionTask", () => {
       assert.fail("Expected an error");
     }
     expect(apdus).toHaveLength(0);
+  });
+});
+
+describe("SendSignTransactionTask with MPT descriptors", () => {
+  const TRANSACTION = transactionOfLength(10);
+  const CERTIFICATE = {
+    keyUsageNumber: 0x08,
+    payload: Uint8Array.from([0xc1, 0xc2]),
+  };
+  const DESCRIPTOR_A = Uint8Array.from([0x01, 0x01, 0x90]);
+  const DESCRIPTOR_B = Uint8Array.from([0x01, 0x01, 0x91]);
+  const DESCRIPTORS = [
+    { descriptor: DESCRIPTOR_A, certificate: CERTIFICATE },
+    { descriptor: DESCRIPTOR_B, certificate: CERTIFICATE },
+  ];
+
+  const CERTIFICATE_APDU = "b006080002c1c2";
+  const DESCRIPTOR_A_APDU = "e022000003010190";
+  const DESCRIPTOR_B_APDU = "e022000003010191";
+
+  const run = async (mptDescriptors?: MptDescriptor[], refusal?: Refusal) => {
+    const apdus: string[] = [];
+    const warn = vi.fn();
+    const sendCommand = vi.fn((command: Command<unknown, unknown, unknown>) => {
+      const apdu = toHex(command.getApdu().getRawApdu());
+      const isFirstSend = !apdus.includes(apdu);
+      apdus.push(apdu);
+
+      if (refusal?.apdu === apdu && isFirstSend) {
+        return Promise.resolve(CommandResultFactory({ error: refusal.error }));
+      }
+
+      const data = apdu.startsWith("e004") ? Just(SIGNATURE) : undefined;
+      return Promise.resolve(CommandResultFactory({ data }));
+    });
+
+    const result = await new SendSignTransactionTask(
+      { sendCommand } as unknown as InternalApi,
+      {
+        mptDescriptors,
+        derivationPath: DERIVATION_PATH,
+        serializedTransaction: TRANSACTION,
+        curve: Curve.Secp256k1,
+        loggerFactory: () => {
+          return {
+            warn,
+            debug: vi.fn(),
+            info: vi.fn(),
+            error: vi.fn(),
+            subscribers: [],
+          } as unknown as LoggerPublisherService;
+        },
+      },
+    ).run();
+
+    return { result, apdus, warn };
+  };
+
+  it("should send the same APDUs as before with no descriptor", async () => {
+    const before = await runTask(TRANSACTION);
+
+    const sent = await run([]);
+
+    expect(sent.apdus).toStrictEqual(before.apdus.map(toHex));
+  });
+
+  it("should send the certificate, then the descriptor, then the transaction", async () => {
+    const sent = await run([DESCRIPTORS[0]!]);
+
+    expectSignature(sent.result);
+    expect(sent.apdus).toHaveLength(3);
+    expect(sent.apdus.slice(0, 2)).toStrictEqual([
+      CERTIFICATE_APDU,
+      DESCRIPTOR_A_APDU,
+    ]);
+    expect(sent.apdus[2]!.startsWith("e004")).toBe(true);
+    expect(sent.warn).not.toHaveBeenCalled();
+  });
+
+  it("should send each descriptor after its certificate, in order", async () => {
+    const sent = await run(DESCRIPTORS);
+
+    expectSignature(sent.result);
+    expect(sent.apdus.slice(0, 4)).toStrictEqual([
+      CERTIFICATE_APDU,
+      DESCRIPTOR_A_APDU,
+      CERTIFICATE_APDU,
+      DESCRIPTOR_B_APDU,
+    ]);
+    expect(sent.apdus.slice(4).every((apdu) => apdu.startsWith("e004"))).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    ["6a80", "the app deleted all descriptors"],
+    ["6a84", "the slots are full"],
+    ["6d00", "the app is older than 2.9.0"],
+    ["6b00", "any other error"],
+  ] as const)(
+    "should stop sending descriptors and sign on %s (%s)",
+    async (errorCode, _reason) => {
+      const sent = await run(DESCRIPTORS, {
+        apdu: DESCRIPTOR_A_APDU,
+        error: makeAppError(errorCode),
+      });
+
+      expectSignature(sent.result);
+      expect(sent.apdus).toHaveLength(3);
+      expect(sent.apdus.slice(0, 2)).toStrictEqual([
+        CERTIFICATE_APDU,
+        DESCRIPTOR_A_APDU,
+      ]);
+      expect(sent.apdus[2]!.startsWith("e004")).toBe(true);
+      expect(sent.warn).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("should stop sending descriptors and sign when the certificate is refused", async () => {
+    const sent = await run(DESCRIPTORS, {
+      apdu: CERTIFICATE_APDU,
+      error: new InvalidStatusWordError("5720"),
+    });
+
+    expectSignature(sent.result);
+    expect(sent.apdus).toHaveLength(2);
+    expect(sent.apdus[0]).toBe(CERTIFICATE_APDU);
+    expect(sent.apdus[1]!.startsWith("e004")).toBe(true);
+    expect(sent.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("should keep the first descriptor when the second one finds no free slot", async () => {
+    const sent = await run(DESCRIPTORS, {
+      apdu: DESCRIPTOR_B_APDU,
+      error: makeAppError("6a84"),
+    });
+
+    expectSignature(sent.result);
+    expect(sent.apdus.slice(0, 4)).toStrictEqual([
+      CERTIFICATE_APDU,
+      DESCRIPTOR_A_APDU,
+      CERTIFICATE_APDU,
+      DESCRIPTOR_B_APDU,
+    ]);
+    expect(sent.apdus[4]!.startsWith("e004")).toBe(true);
+    expect(sent.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("should fail on a transport error", async () => {
+    const sendCommand = vi
+      .fn()
+      .mockResolvedValueOnce(CommandResultFactory({ data: undefined }))
+      .mockRejectedValueOnce(new Error("transport closed"));
+
+    const task = new SendSignTransactionTask(
+      { sendCommand } as unknown as InternalApi,
+      {
+        loggerFactory,
+        derivationPath: DERIVATION_PATH,
+        serializedTransaction: TRANSACTION,
+        curve: Curve.Secp256k1,
+        mptDescriptors: DESCRIPTORS,
+      },
+    );
+
+    await expect(task.run()).rejects.toThrow("transport closed");
   });
 });

@@ -1,3 +1,4 @@
+import { type ContextModule } from "@ledgerhq/context-module";
 import {
   CommandResultFactory,
   type InternalApi,
@@ -70,6 +71,23 @@ describe("SignTransactionDeviceActionFactory", () => {
     });
 
     expect(deviceAction.input.skipOpenApp).toBe(true);
+  });
+
+  it("should forward the context module to the device action", () => {
+    const contextModule = { getContexts: vi.fn() } as unknown as ContextModule;
+
+    const deviceAction = SignTransactionDeviceActionFactory({
+      ...defaultArgs,
+      contextModule,
+    });
+
+    expect(deviceAction.input.contextModule).toBe(contextModule);
+  });
+
+  it("should leave the context module out when none is given", () => {
+    const deviceAction = SignTransactionDeviceActionFactory(defaultArgs);
+
+    expect(deviceAction.input.contextModule).toBeUndefined();
   });
 
   it("should sign with secp256k1 when no curve is given", async () => {

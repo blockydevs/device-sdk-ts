@@ -2439,6 +2439,9 @@ importers:
 
   packages/signer/signer-xrp:
     dependencies:
+      '@ledgerhq/context-module':
+        specifier: workspace:^
+        version: link:../context-module
       '@ledgerhq/signer-utils':
         specifier: workspace:^
         version: link:../signer-utils
