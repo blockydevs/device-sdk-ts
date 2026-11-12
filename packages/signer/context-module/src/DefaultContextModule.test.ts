@@ -1,3 +1,4 @@
+import { DeviceModelId } from "@ledgerhq/device-management-kit";
 import { Right } from "purify-ts";
 
 import {
@@ -9,6 +10,7 @@ import type { TypedDataContextLoader } from "./modules/ethereum/typed-data/domai
 import { DefaultSignReporter } from "./modules/multichain/sign-reporter/domain/DefaultSignReporter";
 import { type SignReportParams } from "./modules/multichain/sign-reporter/model/SignReportParams";
 import { SolanaBasicFlowRuleContextLoader } from "./modules/solana/instruction-info/domain/SolanaBasicFlowRuleContextLoader";
+import { MptTokenContextLoader } from "./modules/xrp/token/domain/MptTokenContextLoader";
 import { type ContextFieldLoader } from "./shared/domain/ContextFieldLoader";
 import { type ContextLoader } from "./shared/domain/ContextLoader";
 import { ContextModuleChainID } from "./shared/domain/ContextModuleChainID";
@@ -476,6 +478,40 @@ describe("DefaultContextModule", () => {
       // THEN
       expect(loadSpy).not.toHaveBeenCalled();
       expect(result).toEqual([]);
+    });
+  });
+
+  describe("XRP MPT descriptors", () => {
+    const input = {
+      rawTransaction: new Uint8Array([0x12, 0x00, 0x00]),
+      deviceModelId: DeviceModelId.FLEX,
+    };
+    const expectedTypes = [ClearSignContextType.XRP_MPT_TOKEN];
+
+    it("should load them through getContexts on XRP", async () => {
+      // GIVEN
+      const contexts: ClearSignContext[] = [
+        {
+          type: ClearSignContextType.XRP_MPT_TOKEN,
+          payload: "0101900201",
+          certificate: { keyUsageNumber: 8, payload: new Uint8Array([1]) },
+        },
+      ];
+      const loadSpy = vi
+        .spyOn(MptTokenContextLoader.prototype, "load")
+        .mockResolvedValue(contexts);
+      const contextModule = new DefaultContextModule({
+        ...defaultContextModuleConfig,
+        defaultLoaders: true,
+        chain: ContextModuleChainID.Xrp,
+      });
+
+      // WHEN
+      const result = await contextModule.getContexts(input, expectedTypes);
+
+      // THEN
+      expect(loadSpy).toHaveBeenCalledWith(input);
+      expect(result).toEqual(contexts);
     });
   });
 });
