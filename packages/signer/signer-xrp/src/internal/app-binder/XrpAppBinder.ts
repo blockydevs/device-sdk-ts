@@ -1,3 +1,4 @@
+import { type ContextModule } from "@ledgerhq/context-module";
 import {
   type DeviceManagementKit,
   type DeviceSessionId,
@@ -5,7 +6,7 @@ import {
   SendCommandInAppDeviceAction,
   UserInteractionRequired,
 } from "@ledgerhq/device-management-kit";
-import { inject, injectable } from "inversify";
+import { inject, injectable, optional } from "inversify";
 
 import { type GetAddressDAReturnType } from "@api/app-binder/GetAddressDeviceActionTypes";
 import { type GetAppConfigDAReturnType } from "@api/app-binder/GetAppConfigDeviceActionTypes";
@@ -25,6 +26,9 @@ export class XrpAppBinder {
     @inject(externalTypes.SessionId) private sessionId: DeviceSessionId,
     @inject(externalTypes.DmkLoggerFactory)
     private dmkLoggerFactory: (tag: string) => LoggerPublisherService,
+    @inject(externalTypes.ContextModule)
+    @optional()
+    private contextModule?: ContextModule,
   ) {}
 
   getAppConfig(args: { skipOpenApp: boolean }): GetAppConfigDAReturnType {
@@ -69,6 +73,7 @@ export class XrpAppBinder {
       sessionId: this.sessionId,
       deviceAction: SignTransactionDeviceActionFactory({
         ...args,
+        contextModule: this.contextModule,
         loggerFactory: this.dmkLoggerFactory,
       }),
     });

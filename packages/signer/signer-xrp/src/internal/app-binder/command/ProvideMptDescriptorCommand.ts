@@ -1,5 +1,6 @@
 import {
   type Apdu,
+  APDU_MAX_PAYLOAD,
   ApduBuilder,
   type ApduBuilderArgs,
   type ApduResponse,
@@ -39,6 +40,15 @@ export class ProvideMptDescriptorCommand
   constructor(private readonly args: ProvideMptDescriptorCommandArgs) {}
 
   getApdu(): Apdu {
+    const { descriptor } = this.args;
+    // ApduBuilder drops data that overflows, which would send an empty
+    // descriptor.
+    if (descriptor.length > APDU_MAX_PAYLOAD) {
+      throw new Error(
+        `MPT descriptor too large for one APDU: ${descriptor.length} > ${APDU_MAX_PAYLOAD}`,
+      );
+    }
+
     const provideMptDescriptorArgs: ApduBuilderArgs = {
       cla: XRP_CLA,
       ins: INS.PROVIDE_MPT_DESCRIPTOR,
@@ -47,7 +57,7 @@ export class ProvideMptDescriptorCommand
     };
 
     return new ApduBuilder(provideMptDescriptorArgs)
-      .addBufferToData(this.args.descriptor)
+      .addBufferToData(descriptor)
       .build();
   }
 

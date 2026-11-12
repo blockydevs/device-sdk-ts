@@ -50,6 +50,31 @@ describe("ProvideMptDescriptorCommand", () => {
         ]),
       );
     });
+
+    it("should send a descriptor of exactly 255 bytes", () => {
+      // GIVEN
+      const descriptor = new Uint8Array(255).fill(0xaa);
+
+      // WHEN
+      const apdu = new ProvideMptDescriptorCommand({ descriptor }).getApdu();
+
+      // THEN
+      expect(apdu.getRawApdu()).toStrictEqual(
+        Uint8Array.from([0xe0, 0x22, 0x00, 0x00, 0xff, ...descriptor]),
+      );
+    });
+
+    it("should refuse a descriptor that does not fit in one APDU", () => {
+      // GIVEN
+      const oversized = new ProvideMptDescriptorCommand({
+        descriptor: new Uint8Array(256),
+      });
+
+      // WHEN / THEN
+      expect(() => oversized.getApdu()).toThrow(
+        "MPT descriptor too large for one APDU: 256 > 255",
+      );
+    });
   });
 
   describe("parseResponse", () => {

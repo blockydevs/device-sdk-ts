@@ -1,3 +1,4 @@
+import { type ContextModule } from "@ledgerhq/context-module";
 import {
   type CommandResult,
   type DeviceActionStateMachine,
@@ -10,7 +11,7 @@ import {
   XStateDeviceAction,
 } from "@ledgerhq/device-management-kit";
 import { Left, Right } from "purify-ts";
-import { assign, fromPromise, setup } from "xstate";
+import { and, assign, fromPromise, setup } from "xstate";
 
 import {
   type SignTransactionDAError,
@@ -24,20 +25,29 @@ import { type Curve } from "@api/model/Curve";
 import { type Signature } from "@api/model/Signature";
 import { type XrpErrorCodes } from "@internal/app-binder/command/utils/xrpApplicationErrors";
 import { APP_NAME } from "@internal/app-binder/constants";
+import {
+  GetMptDescriptorsTask,
+  type MptDescriptor,
+} from "@internal/app-binder/task/GetMptDescriptorsTask";
 import { SendSignTransactionTask } from "@internal/app-binder/task/SendSignTransactionTask";
 
 export type MachineDependencies = {
+  readonly getMptDescriptors: (arg0: {
+    input: { contextModule: ContextModule; transaction: Uint8Array };
+  }) => Promise<MptDescriptor[]>;
   readonly signTransaction: (arg0: {
     input: {
       derivationPath: string;
       transaction: Uint8Array;
       curve: Curve;
+      mptDescriptors?: MptDescriptor[];
     };
   }) => Promise<CommandResult<Signature, XrpErrorCodes>>;
 };
 
 /**
- * Opens the XRP app (unless skipped), then runs {@link SendSignTransactionTask}.
+ * Opens the XRP app (unless skipped), gets the MPT descriptors (when a context
+ * module is given), then runs {@link SendSignTransactionTask}.
  *
  * Unlike `CallTaskInAppDeviceAction`, the serialized transaction is not closed
  * over a task. It lives on machine `context.input.transaction` and can be
@@ -69,7 +79,8 @@ export class SignTransactionDeviceAction extends XStateDeviceAction<
       SignTransactionDAInternalState
     >;
 
-    const { signTransaction } = this.extractDependencies(internalApi);
+    const { getMptDescriptors, signTransaction } =
+      this.extractDependencies(internalApi);
 
     return setup({
       types: {
@@ -78,6 +89,7 @@ export class SignTransactionDeviceAction extends XStateDeviceAction<
         output: {} as types["output"],
       },
       actors: {
+        getMptDescriptors: fromPromise(getMptDescriptors),
         signTransaction: fromPromise(signTransaction),
         openAppStateMachine: new OpenAppDeviceAction({
           input: { appName: APP_NAME },
@@ -86,6 +98,7 @@ export class SignTransactionDeviceAction extends XStateDeviceAction<
       guards: {
         skipOpenApp: ({ context }) => context.input.skipOpenApp,
         noInternalError: ({ context }) => context._internalState.error === null,
+        hasContextModule: ({ context }) => Boolean(context.input.contextModule),
       },
       actions: {
         assignErrorFromEvent: assign({
@@ -95,7 +108,7 @@ export class SignTransactionDeviceAction extends XStateDeviceAction<
           }): SignTransactionDAInternalState => {
             const eventError: unknown = (event as { error?: unknown }).error;
             return {
-              signature: context._internalState.signature,
+              ...context._internalState,
               error: new UnknownDAError(
                 eventError instanceof Error
                   ? eventError.message
@@ -117,11 +130,16 @@ export class SignTransactionDeviceAction extends XStateDeviceAction<
         _internalState: {
           error: null,
           signature: null,
+          mptDescriptors: [],
         },
       }),
       states: {
         InitialState: {
           always: [
+            {
+              target: "GetMptDescriptors",
+              guard: and(["skipOpenApp", "hasContextModule"]),
+            },
             { target: "SignTransaction", guard: "skipOpenApp" },
             "OpenAppDeviceAction",
           ],
@@ -156,9 +174,44 @@ export class SignTransactionDeviceAction extends XStateDeviceAction<
         },
         CheckOpenAppDeviceActionResult: {
           always: [
+            {
+              target: "GetMptDescriptors",
+              guard: and(["noInternalError", "hasContextModule"]),
+            },
             { target: "SignTransaction", guard: "noInternalError" },
             "Error",
           ],
+        },
+        GetMptDescriptors: {
+          entry: assign({
+            intermediateValue: {
+              requiredUserInteraction: UserInteractionRequired.None,
+              step: SignTransactionDAStep.GET_MPT_DESCRIPTORS,
+            },
+          }),
+          invoke: {
+            id: "getMptDescriptors",
+            src: "getMptDescriptors",
+            input: ({ context }) => {
+              return {
+                contextModule: context.input.contextModule!,
+                transaction: context.input.transaction,
+              };
+            },
+            onDone: {
+              target: "SignTransaction",
+              actions: assign({
+                _internalState: ({ event, context }) => {
+                  return {
+                    ...context._internalState,
+                    mptDescriptors: event.output,
+                  };
+                },
+              }),
+            },
+            // A missing descriptor never blocks the signature.
+            onError: { target: "SignTransaction" },
+          },
         },
         SignTransaction: {
           entry: assign({
@@ -175,6 +228,7 @@ export class SignTransactionDeviceAction extends XStateDeviceAction<
               derivationPath: context.input.derivationPath,
               transaction: context.input.transaction,
               curve: context.input.curve,
+              mptDescriptors: context._internalState.mptDescriptors,
             }),
             onDone: {
               target: "SignTransactionResultCheck",
@@ -221,15 +275,13 @@ export class SignTransactionDeviceAction extends XStateDeviceAction<
       this.input.loggerFactory ?? this.getLoggerFactory(internalApi);
 
     return {
-      signTransaction: ({
-        input,
-      }: {
-        input: {
-          derivationPath: string;
-          transaction: Uint8Array;
-          curve: Curve;
-        };
-      }) => {
+      getMptDescriptors: ({ input }) => {
+        return new GetMptDescriptorsTask(internalApi, {
+          ...input,
+          loggerFactory,
+        }).run();
+      },
+      signTransaction: ({ input }) => {
         // context.input.transaction is seeded by factory args or invoke input;
         // reject the factory default / missing bytes before hitting the device.
         if (!input.transaction?.length) {
@@ -244,6 +296,7 @@ export class SignTransactionDeviceAction extends XStateDeviceAction<
           derivationPath: input.derivationPath,
           serializedTransaction: input.transaction,
           curve: input.curve,
+          mptDescriptors: input.mptDescriptors,
           loggerFactory,
         }).run();
       },
