@@ -1,3 +1,4 @@
+import { type ContextModule } from "@ledgerhq/context-module";
 import {
   type DeviceManagementKit,
   type DeviceSessionId,
@@ -25,6 +26,8 @@ export class XrpAppBinder {
     @inject(externalTypes.SessionId) private sessionId: DeviceSessionId,
     @inject(externalTypes.DmkLoggerFactory)
     private dmkLoggerFactory: (tag: string) => LoggerPublisherService,
+    @inject(externalTypes.ContextModule)
+    private contextModule: ContextModule,
   ) {}
 
   getAppConfig(args: { skipOpenApp: boolean }): GetAppConfigDAReturnType {
@@ -69,6 +72,7 @@ export class XrpAppBinder {
       sessionId: this.sessionId,
       deviceAction: SignTransactionDeviceActionFactory({
         ...args,
+        contextModule: this.contextModule,
         loggerFactory: this.dmkLoggerFactory,
       }),
     });

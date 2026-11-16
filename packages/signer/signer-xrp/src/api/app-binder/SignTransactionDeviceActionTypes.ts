@@ -1,3 +1,4 @@
+import { type ContextModule } from "@ledgerhq/context-module";
 import {
   type CommandErrorResult,
   type ExecuteDeviceActionReturnType,
@@ -10,6 +11,7 @@ import {
 import { type Curve } from "@api/model/Curve";
 import { type Signature } from "@api/model/Signature";
 import { type XrpErrorCodes } from "@internal/app-binder/command/utils/xrpApplicationErrors";
+import { type MptDescriptor } from "@internal/app-binder/task/GetMptDescriptorsTask";
 
 export type SignTransactionDAOutput = Signature;
 
@@ -31,6 +33,11 @@ export type SignTransactionDAInput = {
   readonly transaction: Uint8Array;
   readonly skipOpenApp: boolean;
   readonly curve: Curve;
+  /**
+   * Loads the MPT descriptors sent before the transaction. Without it, the
+   * device action sends no descriptor.
+   */
+  readonly contextModule?: ContextModule;
   readonly loggerFactory: (tag: string) => LoggerPublisherService;
 };
 
@@ -44,6 +51,7 @@ type SignTransactionDARequiredInteraction =
 
 export enum SignTransactionDAStep {
   OPEN_APP = "signer.xrp.steps.openApp",
+  GET_MPT_DESCRIPTORS = "signer.xrp.steps.getMptDescriptors",
   SIGN_TRANSACTION = "signer.xrp.steps.signTransaction",
 }
 
@@ -55,6 +63,7 @@ export type SignTransactionDAIntermediateValue = {
 export type SignTransactionDAInternalState = {
   readonly error: SignTransactionDAError | null;
   readonly signature: Signature | null;
+  readonly mptDescriptors: MptDescriptor[];
 };
 
 export type SignTransactionDAReturnType = ExecuteDeviceActionReturnType<

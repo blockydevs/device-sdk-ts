@@ -1,3 +1,4 @@
+import { type ContextModule } from "@ledgerhq/context-module";
 import {
   type DeviceManagementKit,
   type DeviceSessionId,
@@ -22,13 +23,14 @@ import { type SignTransactionUseCase } from "@internal/use-cases/transaction/Sig
 type DefaultSignerXrpConstructorArgs = {
   dmk: DeviceManagementKit;
   sessionId: DeviceSessionId;
+  contextModule: ContextModule;
 };
 
 export class DefaultSignerXrp implements SignerXrp {
   private readonly _container: Container;
 
-  constructor({ dmk, sessionId }: DefaultSignerXrpConstructorArgs) {
-    this._container = makeContainer({ dmk, sessionId });
+  constructor(args: DefaultSignerXrpConstructorArgs) {
+    this._container = makeContainer(args);
   }
 
   getAppConfig(options?: AppConfigOptions): GetAppConfigDAReturnType {
