@@ -67,6 +67,8 @@ type SignTransactionCallArgs = {
 
 const DERIVATION_PATH = "44'/144'/0'/0/0";
 
+const contextModule = { getContexts: vi.fn() } as unknown as ContextModule;
+
 const loggerFactory = () =>
   ({
     debug: vi.fn(),
@@ -75,8 +77,6 @@ const loggerFactory = () =>
     error: vi.fn(),
     subscribers: [],
   }) as unknown as LoggerPublisherService;
-
-const contextModule = { getContexts: vi.fn() } as unknown as ContextModule;
 
 describe("XrpAppBinder", () => {
   it("should be defined", () => {

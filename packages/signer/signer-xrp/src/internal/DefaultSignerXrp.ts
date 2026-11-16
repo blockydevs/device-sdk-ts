@@ -29,12 +29,8 @@ type DefaultSignerXrpConstructorArgs = {
 export class DefaultSignerXrp implements SignerXrp {
   private readonly _container: Container;
 
-  constructor({
-    dmk,
-    sessionId,
-    contextModule,
-  }: DefaultSignerXrpConstructorArgs) {
-    this._container = makeContainer({ dmk, sessionId, contextModule });
+  constructor(args: DefaultSignerXrpConstructorArgs) {
+    this._container = makeContainer(args);
   }
 
   getAppConfig(options?: AppConfigOptions): GetAppConfigDAReturnType {

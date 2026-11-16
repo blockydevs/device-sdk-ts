@@ -37,6 +37,7 @@ export class SignerXrpBuilder {
    */
   withContextModule(contextModule: ContextModule) {
     this._customContextModule = contextModule;
+
     return this;
   }
 
@@ -49,8 +50,9 @@ export class SignerXrpBuilder {
     const contextModule =
       this._customContextModule ??
       new ContextModuleBuilder({
-        loggerFactory: (tag: string) =>
-          this._dmk.getLoggerFactory()(["ContextModule", tag]),
+        loggerFactory: (tag: string) => {
+          return this._dmk.getLoggerFactory()(["ContextModule", tag]);
+        },
       })
         .setChain(ContextModuleChainID.Xrp)
         .build();

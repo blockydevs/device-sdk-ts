@@ -129,6 +129,7 @@ export class SendSignTransactionTask {
           "[provideMptDescriptors] Certificate refused, signing without more MPT descriptors",
           { data: { error: certificateResult.error } },
         );
+
         return;
       }
 
@@ -140,6 +141,7 @@ export class SendSignTransactionTask {
           "[provideMptDescriptors] MPT descriptor refused, signing without more MPT descriptors",
           { data: { error: descriptorResult.error } },
         );
+
         return;
       }
     }

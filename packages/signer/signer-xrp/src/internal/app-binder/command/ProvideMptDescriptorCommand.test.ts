@@ -66,12 +66,12 @@ describe("ProvideMptDescriptorCommand", () => {
 
     it("should refuse a descriptor that does not fit in one APDU", () => {
       // GIVEN
-      const oversized = new ProvideMptDescriptorCommand({
+      const oversizedCommand = new ProvideMptDescriptorCommand({
         descriptor: new Uint8Array(256),
       });
 
       // WHEN / THEN
-      expect(() => oversized.getApdu()).toThrow(
+      expect(() => oversizedCommand.getApdu()).toThrow(
         "MPT descriptor too large for one APDU: 256 > 255",
       );
     });

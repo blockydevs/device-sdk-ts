@@ -21,13 +21,13 @@ const getSignedContextModule = (
     getLoggerFactory: () => () => ({}),
   } as unknown as DeviceManagementKit;
 
-  makeBuilder(dmk)
-    .build()
-    .signTransaction("44'/144'/0'/0/0", new Uint8Array([0x12, 0x00]));
+  const signer = makeBuilder(dmk).build();
+  signer.signTransaction("44'/144'/0'/0/0", new Uint8Array([0x12, 0x00]));
 
   const call = executeDeviceAction.mock.calls[0]![0] as {
     deviceAction: SignTransactionDeviceAction;
   };
+
   return call.deviceAction.input.contextModule;
 };
 
@@ -63,16 +63,18 @@ describe("SignerXrpBuilder", () => {
     });
 
     it("should sign with the context module given to withContextModule", () => {
-      const custom = { getContexts: vi.fn() } as unknown as ContextModule;
+      const customContextModule = {
+        getContexts: vi.fn(),
+      } as unknown as ContextModule;
 
       const contextModule = getSignedContextModule((dmk) => {
         return new SignerXrpBuilder({
           dmk,
           sessionId: "test-session-id",
-        }).withContextModule(custom);
+        }).withContextModule(customContextModule);
       });
 
-      expect(contextModule).toBe(custom);
+      expect(contextModule).toBe(customContextModule);
     });
   });
 });

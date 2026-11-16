@@ -26,6 +26,12 @@ const DERIVATION_PATH = "44'/144'/0'/0/0";
 const INS_SIGN = 0x04;
 const SIGNATURE = Uint8Array.from([0x30, 0x44, 0x02, 0x20, 0x01, 0x02]);
 
+type Refusal = {
+  /** Hex of the APDU to refuse, the first time it is sent. */
+  apdu: string;
+  error: CommandErrorResult<XrpErrorCodes>["error"];
+};
+
 // `[nDerivations][index x n]` ahead of the transaction bytes.
 const prefixLength = (elements: number) => 1 + elements * 4;
 const PREFIX = prefixLength(5);
@@ -45,12 +51,6 @@ const loggerFactory = () =>
 /** A transaction of `length` bytes, each byte distinct enough to spot a slice. */
 const transactionOfLength = (length: number) =>
   Uint8Array.from({ length }, (_, i) => i & 0xff);
-
-type Refusal = {
-  /** Hex of the APDU to refuse, the first time it is sent. */
-  apdu: string;
-  error: CommandErrorResult<XrpErrorCodes>["error"];
-};
 
 /**
  * Drive the task against a stubbed device that acknowledges every command and
@@ -341,7 +341,7 @@ describe("SendSignTransactionTask with MPT descriptors", () => {
   };
   const DESCRIPTOR_A = Uint8Array.from([0x01, 0x01, 0x90]);
   const DESCRIPTOR_B = Uint8Array.from([0x01, 0x01, 0x91]);
-  const DESCRIPTORS = [
+  const MPT_DESCRIPTORS = [
     { descriptor: DESCRIPTOR_A, certificate: CERTIFICATE },
     { descriptor: DESCRIPTOR_B, certificate: CERTIFICATE },
   ];
@@ -354,7 +354,7 @@ describe("SendSignTransactionTask with MPT descriptors", () => {
 
   it("should send the certificate, then the descriptor, then the transaction", async () => {
     const { result, hexApdus, warn } = await runTask(TRANSACTION, {
-      mptDescriptors: [DESCRIPTORS[0]!],
+      mptDescriptors: [MPT_DESCRIPTORS[0]!],
     });
 
     expectSignature(result);
@@ -368,7 +368,7 @@ describe("SendSignTransactionTask with MPT descriptors", () => {
 
   it("should send each descriptor after its certificate, in order", async () => {
     const { result, hexApdus } = await runTask(TRANSACTION, {
-      mptDescriptors: DESCRIPTORS,
+      mptDescriptors: MPT_DESCRIPTORS,
     });
 
     expectSignature(result);
@@ -383,7 +383,7 @@ describe("SendSignTransactionTask with MPT descriptors", () => {
 
   it("should stop sending descriptors and sign when a descriptor is refused", async () => {
     const { result, hexApdus, warn } = await runTask(TRANSACTION, {
-      mptDescriptors: DESCRIPTORS,
+      mptDescriptors: MPT_DESCRIPTORS,
       refusal: { apdu: DESCRIPTOR_A_APDU, error: makeAppError("6a80") },
     });
 
@@ -398,7 +398,7 @@ describe("SendSignTransactionTask with MPT descriptors", () => {
 
   it("should stop sending descriptors and sign when the certificate is refused", async () => {
     const { result, hexApdus, warn } = await runTask(TRANSACTION, {
-      mptDescriptors: DESCRIPTORS,
+      mptDescriptors: MPT_DESCRIPTORS,
       refusal: {
         apdu: CERTIFICATE_APDU,
         error: new InvalidStatusWordError("5720"),
@@ -412,7 +412,7 @@ describe("SendSignTransactionTask with MPT descriptors", () => {
 
   it("should keep the first descriptor when the second one finds no free slot", async () => {
     const { result, hexApdus, warn } = await runTask(TRANSACTION, {
-      mptDescriptors: DESCRIPTORS,
+      mptDescriptors: MPT_DESCRIPTORS,
       refusal: { apdu: DESCRIPTOR_B_APDU, error: makeAppError("6a84") },
     });
 
@@ -440,7 +440,7 @@ describe("SendSignTransactionTask with MPT descriptors", () => {
         derivationPath: DERIVATION_PATH,
         serializedTransaction: TRANSACTION,
         curve: Curve.Secp256k1,
-        mptDescriptors: DESCRIPTORS,
+        mptDescriptors: MPT_DESCRIPTORS,
       },
     );
 

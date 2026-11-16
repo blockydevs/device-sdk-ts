@@ -50,6 +50,7 @@ export class GetMptDescriptorsTask {
       this._logger.warn("[run] Failed to get the MPT descriptors", {
         data: { error },
       });
+
       return [];
     }
 

@@ -313,25 +313,6 @@ describe("SignTransactionDeviceAction", () => {
         certificate: { keyUsageNumber: 8, payload: new Uint8Array([0x01]) },
       },
     ];
-
-    const makeDeviceActionWithContextModule = (skipOpenApp: boolean) => {
-      const deviceAction = new SignTransactionDeviceAction({
-        input: {
-          skipOpenApp,
-          contextModule,
-          loggerFactory,
-          derivationPath: DERIVATION_PATH,
-          transaction: TRANSACTION,
-          curve: Curve.Secp256k1,
-        },
-      });
-      vi.spyOn(deviceAction, "extractDependencies").mockReturnValue({
-        getMptDescriptors: getMptDescriptorsMock,
-        signTransaction: signTransactionMock,
-      });
-      return deviceAction;
-    };
-
     const getMptDescriptorsState = {
       status: DeviceActionStatus.Pending,
       intermediateValue: {
@@ -350,6 +331,25 @@ describe("SignTransactionDeviceAction", () => {
       status: DeviceActionStatus.Completed,
       output: SIGNATURE,
     } as const;
+
+    const makeDeviceActionWithContextModule = (skipOpenApp: boolean) => {
+      const deviceAction = new SignTransactionDeviceAction({
+        input: {
+          skipOpenApp,
+          contextModule,
+          loggerFactory,
+          derivationPath: DERIVATION_PATH,
+          transaction: TRANSACTION,
+          curve: Curve.Secp256k1,
+        },
+      });
+      vi.spyOn(deviceAction, "extractDependencies").mockReturnValue({
+        getMptDescriptors: getMptDescriptorsMock,
+        signTransaction: signTransactionMock,
+      });
+
+      return deviceAction;
+    };
 
     const expectSignedWith = (mptDescriptors: unknown) => {
       expect(signTransactionMock).toHaveBeenCalledWith(
@@ -511,14 +511,14 @@ describe("SignTransactionDeviceAction", () => {
       });
 
       const { getMptDescriptors } = deviceAction.extractDependencies(apiMock);
-      const descriptors = await getMptDescriptors({
+      const mptDescriptors = await getMptDescriptors({
         input: {
           contextModule: { getContexts } as unknown as ContextModule,
           transaction: TRANSACTION,
         },
       });
 
-      expect(descriptors).toStrictEqual([]);
+      expect(mptDescriptors).toStrictEqual([]);
       expect(getContexts).toHaveBeenCalledWith(
         { rawTransaction: TRANSACTION, deviceModelId: DeviceModelId.FLEX },
         [ClearSignContextType.XRP_MPT_TOKEN],
