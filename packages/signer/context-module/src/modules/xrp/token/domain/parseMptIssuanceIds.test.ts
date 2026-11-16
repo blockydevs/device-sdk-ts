@@ -28,16 +28,19 @@ const PAYMENT_WITH_MEMOS =
 const ISSUANCE_A = "0631381B71048C4D35D2044917EE3C26F60E6CA8FC954A71";
 const ISSUANCE_B = "064E278B6D15D1F5614B4D4E3183F835BCD62E7F6FD9FFD8";
 
-// SendMax (Amount type, field 9) holding an MPT amount of the given issuance.
-const makeMptSendMax = (issuanceId: string) =>
-  `69600000000000000001${issuanceId}`;
-
 // Asset (Issue type, field 3) as XRP, then Asset2 (field 4) as an IOU.
 const ISSUE_FIELDS = `0318${"00".repeat(20)}0418${"00".repeat(12)}55534400000000000a20b3c85f482532a9578dbb3950b85ca06594d1`;
 // SigningPubKey (Blob type, field 3) of 193 bytes, the first two-byte length.
 const LONG_BLOB = `73c100${"ab".repeat(193)}`;
 
-const parseHex = (hex: string) => parseMptIssuanceIds(hexaStringToBuffer(hex)!);
+// SendMax (Amount type, field 9) holding an MPT amount of the given issuance.
+function makeMptSendMax(issuanceId: string) {
+  return `69600000000000000001${issuanceId}`;
+}
+
+function parseHex(hex: string) {
+  return parseMptIssuanceIds(hexaStringToBuffer(hex)!);
+}
 
 describe("parseMptIssuanceIds", () => {
   it.each([

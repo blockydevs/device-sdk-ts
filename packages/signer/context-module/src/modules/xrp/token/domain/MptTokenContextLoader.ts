@@ -36,15 +36,18 @@ export class MptTokenContextLoader
     input: unknown,
     expectedTypes: ClearSignContextType[],
   ): input is XrpTransactionContext {
-    return (
-      SUPPORTED_TYPES.every((type) => expectedTypes.includes(type)) &&
+    const isTypeExpected = SUPPORTED_TYPES.every((type) => {
+      return expectedTypes.includes(type);
+    });
+    const isTransactionContext =
       typeof input === "object" &&
       input !== null &&
       "deviceModelId" in input &&
       "rawTransaction" in input &&
       input.rawTransaction instanceof Uint8Array &&
-      input.rawTransaction.length > 0
-    );
+      input.rawTransaction.length > 0;
+
+    return isTypeExpected && isTransactionContext;
   }
 
   async load(input: XrpTransactionContext): Promise<ClearSignContext[]> {
@@ -69,7 +72,7 @@ export class MptTokenContextLoader
     }
 
     return Promise.all(
-      issuanceIds.map(async (issuanceId): Promise<ClearSignContext> => {
+      issuanceIds.map(async (issuanceId) => {
         const descriptor = await this.dataSource.getMptDescriptor({
           issuanceId,
         });

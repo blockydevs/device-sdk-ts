@@ -29,8 +29,8 @@ describe("HttpMptTokenDataSource", () => {
     },
   };
 
-  const makeDataSource = (mode: "prod" | "test") => {
-    return new HttpMptTokenDataSource(
+  function getMptDescriptor(mode: "prod" | "test") {
+    const dataSource = new HttpMptTokenDataSource(
       {
         cal: {
           mode,
@@ -40,7 +40,9 @@ describe("HttpMptTokenDataSource", () => {
       } as ContextModuleServiceConfig,
       httpMock as unknown as DmkNetworkClient,
     );
-  };
+
+    return dataSource.getMptDescriptor({ issuanceId: ISSUANCE_ID });
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -50,7 +52,7 @@ describe("HttpMptTokenDataSource", () => {
   it("should ask CAL for the issuance ID in lowercase", async () => {
     httpMock.get.mockResolvedValue([]);
 
-    await makeDataSource("prod").getMptDescriptor({ issuanceId: ISSUANCE_ID });
+    await getMptDescriptor("prod");
 
     expect(httpMock.get).toHaveBeenCalledWith(
       "https://global.api.prd.ledger.com/cal/v1/tokens",
@@ -72,9 +74,7 @@ describe("HttpMptTokenDataSource", () => {
     async (mode, expected) => {
       httpMock.get.mockResolvedValue([entry]);
 
-      const result = await makeDataSource(mode).getMptDescriptor({
-        issuanceId: ISSUANCE_ID,
-      });
+      const result = await getMptDescriptor(mode);
 
       expect(result).toStrictEqual(Right(expected));
     },
@@ -99,9 +99,7 @@ describe("HttpMptTokenDataSource", () => {
   ])("should return an error for %s", async (_label, body) => {
     httpMock.get.mockResolvedValue(body);
 
-    const result = await makeDataSource("prod").getMptDescriptor({
-      issuanceId: ISSUANCE_ID,
-    });
+    const result = await getMptDescriptor("prod");
 
     expect(result).toStrictEqual(
       Left(
@@ -115,9 +113,7 @@ describe("HttpMptTokenDataSource", () => {
   it("should return an error when the request fails", async () => {
     httpMock.get.mockRejectedValue(new Error("network error"));
 
-    const result = await makeDataSource("prod").getMptDescriptor({
-      issuanceId: ISSUANCE_ID,
-    });
+    const result = await getMptDescriptor("prod");
 
     expect(result).toStrictEqual(
       Left(

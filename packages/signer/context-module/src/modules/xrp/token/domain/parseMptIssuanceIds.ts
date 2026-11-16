@@ -1,9 +1,7 @@
 import { bufferToHexaString } from "@ledgerhq/device-management-kit";
 
-/**
- * Walks the XRPL binary format with the same type-length rules as app-xrp
- * 2.9.0 (`read_field_value` in `src/xrp/xrp_parse.c`).
- */
+// Walks the XRPL binary format with the same type-length rules as app-xrp
+// 2.9.0 (`read_field_value` in `src/xrp/xrp_parse.c`).
 
 const TYPE_UINT16 = 1;
 const TYPE_UINT32 = 2;
@@ -140,12 +138,14 @@ function readValueEnd(
       if (typeof first !== "number") return undefined;
       if ((first & AMOUNT_IOU_BIT) !== 0) return offset + IOU_AMOUNT_LENGTH;
       if ((first & AMOUNT_MPT_BIT) !== 0) return offset + MPT_AMOUNT_LENGTH;
+
       return offset + XRP_AMOUNT_LENGTH;
     }
     case TYPE_BLOB:
     case TYPE_ACCOUNT:
     case TYPE_VECTOR256: {
       const vl = readVariableLength(bytes, offset);
+
       return vl && vl.next + vl.length;
     }
     case TYPE_OBJECT:
@@ -157,6 +157,7 @@ function readValueEnd(
       const isXrp = bytes
         .subarray(offset, offset + ISSUE_CURRENCY_LENGTH)
         .every((byte) => byte === 0);
+
       return offset + (isXrp ? ISSUE_CURRENCY_LENGTH : ISSUE_LENGTH);
     }
     default:
@@ -185,13 +186,13 @@ function findIssuanceId(
   if (!isMptAmount) return undefined;
 
   const start = header.next + MPT_ISSUANCE_ID_OFFSET;
+
   return bytes.subarray(start, start + ISSUANCE_ID_LENGTH);
 }
 
 /**
- * Returns the distinct MPT issuance IDs of a serialized XRPL transaction, in
- * transaction order, as uppercase hex. Returns an empty list when the
- * transaction holds no MPT or cannot be walked to its end.
+ * Distinct MPT issuance IDs in transaction order, as uppercase hex. Empty when
+ * the transaction holds no MPT or cannot be walked to its end.
  */
 export function parseMptIssuanceIds(transaction: Uint8Array): string[] {
   const ids = new Set<string>();

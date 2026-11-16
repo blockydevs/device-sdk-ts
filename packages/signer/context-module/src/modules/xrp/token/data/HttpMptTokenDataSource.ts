@@ -49,9 +49,9 @@ export class HttpMptTokenDataSource implements MptTokenDataSource {
           const signature = descriptor?.signatures[this.config.cal.mode];
           if (!descriptor?.data || !signature) return noDescriptor();
 
-          const signatureLength = (signature.length / 2)
-            .toString(16)
-            .padStart(2, "0");
+          const byteCount = signature.length / 2;
+          const signatureLength = byteCount.toString(16).padStart(2, "0");
+
           return Right(
             `${descriptor.data}${SIGNATURE_TAG}${signatureLength}${signature}`,
           );

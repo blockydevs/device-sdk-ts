@@ -27,32 +27,33 @@ const CERTIFICATE = {
 
 // Amount (field 1), SendMax (field 9) and DeliverMin (field 10), each an MPT
 // amount of the given issuance.
-const makeMptPayment = (...issuanceIds: string[]) => {
+function makeMptPayment(...issuanceIds: string[]) {
   const headers = ["61", "69", "6a"];
   const amounts = issuanceIds
     .map((id, i) => `${headers[i]}600000000000000001${id}`)
     .join("");
+
   return hexaStringToBuffer(
     `120000${amounts}81140511e17db83bb6f113939d67bc8ea539edc926fc`,
   )!;
-};
+}
 
-const makeSuccessContext = (issuanceId: string) => {
+function makeSuccessContext(issuanceId: string) {
   return {
     certificate: CERTIFICATE,
     type: ClearSignContextType.XRP_MPT_TOKEN,
     payload: `descriptor-${issuanceId}`,
   };
-};
+}
 
 describe("MptTokenContextLoader", () => {
   let dataSource: { getMptDescriptor: ReturnType<typeof vi.fn> };
   let certificateLoader: { loadCertificate: ReturnType<typeof vi.fn> };
   let loader: MptTokenContextLoader;
 
-  const load = (rawTransaction: Uint8Array) => {
+  function load(rawTransaction: Uint8Array) {
     return loader.load({ rawTransaction, deviceModelId: DeviceModelId.FLEX });
-  };
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -175,6 +176,7 @@ describe("MptTokenContextLoader", () => {
             issuanceId === ISSUANCE_A
               ? Left(error)
               : Right(`descriptor-${issuanceId}`);
+
           return Promise.resolve(descriptor);
         },
       );
